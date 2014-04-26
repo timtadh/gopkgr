@@ -13,8 +13,8 @@ import (
 
 import (
 	"github.com/timtadh/getopt"
-	"github.com/timtadh/gopkg/tar"
-	"github.com/timtadh/gopkg/goenv"
+	"github.com/timtadh/gopkgr/tar"
+	"github.com/timtadh/gopkgr/goenv"
 )
 
 var ErrorCodes map[string]int = map[string]int{
@@ -24,11 +24,11 @@ var ErrorCodes map[string]int = map[string]int{
 	"badint":5,
 }
 
-var UsageMessage string = "gopkg -h"
+var UsageMessage string = "gopkgr -h"
 var ExtendedMessage string = `
 Before getting started run
 
-    $ eval $(gopkg --goenv-function)
+    $ eval $(gopkgr --goenv-function)
 
 This installs the shell function, goenv, you need to utilize the virtualenv
 like functionality.
@@ -40,7 +40,7 @@ Commands
     remove <gopath> <tarball>           remove a package from the gopath
     mkpkg -o name.tar.gz <gopath>       packages the src directory at this go path
 
-gopkg Options
+gopkgr Options
     -h, --help                          print this message
     --goenv-function                    print the goenv function
 `
@@ -72,7 +72,7 @@ goenv Commands
 
 <project> is a path to your project directory.
 <tarball> is a path to a source tarball.
-<url> is an import url ie. github.com/timtadh/gopkg
+<url> is an import url ie. github.com/timtadh/gopkgr
 `
 
 func Usage(code int) {
@@ -110,7 +110,7 @@ func pack_unpack_test() {
 }
 
 func Pkger() error {
-	bin, err := exec.LookPath("gopkg")
+	bin, err := exec.LookPath("gopkgr")
 	if err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func getpkg(goenv string, argv []string) {
 	}
 	url := args[0]
 
-	gopath, err := ioutil.TempDir("", "gopkg-gopath-")
+	gopath, err := ioutil.TempDir("", "gopkgr-gopath-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(12)

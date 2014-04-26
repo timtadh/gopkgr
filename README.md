@@ -1,4 +1,4 @@
-# `gopkg` - Go Package Installer
+# `gopkgr` - Go Package Installer
 
 by Tim Henderson
 
@@ -16,7 +16,7 @@ installation and managing environments.
 
 # Status
 
-Currently `gopkg` consists of two things. One is a very simple system to tarball
+Currently `gopkgr` consists of two things. One is a very simple system to tarball
 a src tree from a go path. It can also install such source trees (and remove
 them if you have the original tarball). This is very much at the "proof of
 concept" stage.
@@ -38,8 +38,8 @@ that issue.
 
 # Usage
 
-    go get github.com/timtadh/gopkg
-    eval $(gopkg --goenv-function) ## add this to your .bashrc
+    go get github.com/timtadh/gopkgr
+    eval $(gopkgr --goenv-function) ## add this to your .bashrc
 
 Making a virtual environment (or activating one)
 
@@ -51,16 +51,16 @@ Deactivating the virtual environment
 
 Tarballing a source tree:
 
-    gopkg mkpkg -o mytree.tar.gz /path/to/gopath
+    gopkgr mkpkg -o mytree.tar.gz /path/to/gopath
 
 Installing a tarball (2 ways):
 
-    gopkg install /path/to/gopath mytree.tar.gz
+    gopkgr install /path/to/gopath mytree.tar.gz
     goenv install mytree.tar.gz
 
 Removing a tarball (2 ways):
 
-    gopkg remove /path/to/gopath mytree.tar.gz
+    gopkgr remove /path/to/gopath mytree.tar.gz
     goenv remove mytree.tar.gz
 
 Making a tarball from a go-gettable url
