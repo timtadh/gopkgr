@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"os"
 	"os/exec"
+	"io/ioutil"
 	"strings"
 )
 
@@ -62,9 +63,16 @@ goenv Commands
     deactivate                          deactivate the virtual env
     install <tarball>                   install a package to this env
     remove <tarball>                    remove a package from this env
+    getpkg -o name.tar.gz <url>         gets the go gettable repository and
+                                        packages it as tar.gz. Note: this
+                                        is scoped because it uses the goenv
+                                        you are currently using to limit which
+                                        dependencies to download. You can use
+                                        this property to make minimal tarballs
 
 <project> is a path to your project directory.
 <tarball> is a path to a source tarball.
+<url> is an import url ie. github.com/timtadh/gopkg
 `
 
 func Usage(code int) {
@@ -184,6 +192,12 @@ func goenv_cmd(argv []string) {
 	cmd := args[0]
 	args = args[1:]
 	switch cmd {
+	case "getpkg":
+		if goenv == "" {
+			fmt.Fprintln(os.Stderr, "getpkg requires you to be in a virtual env")
+			GoEnvUsage(ErrorCodes["opts"])
+		}
+		getpkg(goenv, args)
 	case "activate":
 		if len(args) == 0 {
 			fmt.Fprintln(os.Stderr, "activate require a project dir")
@@ -262,7 +276,75 @@ func mkpkg(argv []string) {
 	}
 }
 
-func go_install(gopath string) error {
+func getpkg(goenv string, argv []string) {
+	args, optargs, err := getopt.GetOpt(
+		argv,
+		"ho:r:",
+		[]string{
+			"help", "output=", "revision=",
+		},
+	)
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		GoEnvUsage(ErrorCodes["opts"])
+	}
+
+	var output string = ""
+	// var revision string = ""
+	for _, oa := range optargs {
+		switch oa.Opt() {
+		case "-h", "--help": GoEnvUsage(0)
+		case "-o", "--output": output = oa.Arg()
+		// case "-r", "--revision": revision = oa.Arg()
+		}
+	}
+
+	if output == "" {
+		fmt.Fprintln(os.Stderr, "You must supply an output location")
+		GoEnvUsage(ErrorCodes["opts"])
+	}
+
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "You must supply a source repo")
+		GoEnvUsage(ErrorCodes["opts"])
+	}
+	url := args[0]
+
+	gopath, err := ioutil.TempDir("", "gopkg-gopath-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(12)
+	}
+	defer os.RemoveAll(gopath)
+	if err := go_get(goenv, gopath, url); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		GoEnvUsage(ErrorCodes["opts"])
+	}
+	if err := go_install(goenv, gopath, url); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		GoEnvUsage(ErrorCodes["opts"])
+	}
+
+	if err := tar.Archive(gopath, "src", output); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		GoEnvUsage(ErrorCodes["opts"])
+	}
+}
+
+func git_clone(url string) (tree string, err error) {
+	return "", fmt.Errorf("unimplemented")
+}
+
+func git_checkout(url, tree string) (err error) {
+	return fmt.Errorf("unimplemented")
+}
+
+func locate(url, tree string) (gopath string, err error) {
+	return "", fmt.Errorf("unimplemented")
+}
+
+func go_get(goenv, gopath, spec string) error {
 	gobin, err := exec.LookPath("go")
 	if err != nil {
 		return err
@@ -270,12 +352,37 @@ func go_install(gopath string) error {
 	env := os.Environ()
 	for i, kv := range env {
 		if strings.HasPrefix(kv, "GOPATH") {
-			env[i] = fmt.Sprintf("GOPATH=%s", gopath)
+			env[i] = fmt.Sprintf("GOPATH=%s", gopath + ":" + goenv)
+		}
+	}
+	go_get := &exec.Cmd{
+		Path: gobin,
+		Args: []string{gobin, "get", spec},
+		Env: env,
+		Stdin: os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	if err := go_get.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func go_install(goenv, gopath, spec string) error {
+	gobin, err := exec.LookPath("go")
+	if err != nil {
+		return err
+	}
+	env := os.Environ()
+	for i, kv := range env {
+		if strings.HasPrefix(kv, "GOPATH") {
+			env[i] = fmt.Sprintf("GOPATH=%s", gopath + ":" + goenv)
 		}
 	}
 	go_install := &exec.Cmd{
 		Path: gobin,
-		Args: []string{gobin, "install", "..."},
+		Args: []string{gobin, "install", spec},
 		Env: env,
 		Stdin: os.Stdin,
 		Stdout: os.Stdout,
@@ -301,7 +408,7 @@ func install(gopath, tarball string) error {
 	if err := tar.Unpack(gopath, tarball); err != nil {
 		return err
 	}
-	return go_install(gopath)
+	return go_install("", gopath, "...")
 }
 
 func install_cmd(argv []string) {
@@ -353,7 +460,7 @@ func remove(gopath, tarball string) error {
 	}
 	os.RemoveAll(path.Join(gopath, "bin"))
 	os.RemoveAll(path.Join(gopath, "pkg"))
-	return go_install(gopath)
+	return go_install("", gopath, "...")
 }
 
 func remove_cmd(argv []string) {

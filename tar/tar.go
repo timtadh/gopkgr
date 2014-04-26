@@ -40,6 +40,10 @@ func dirpath(path string) string {
 }
 
 func Process(prefix, path string, archive *tar.Writer) error {
+	name := pathpkg.Base(path)
+	if strings.HasPrefix(name, ".") {
+		return nil
+	}
 	abs_path := pathpkg.Join(prefix, path)
 	stat, err := os.Stat(abs_path)
 	if err != nil { panic(err) }
@@ -51,10 +55,6 @@ func Process(prefix, path string, archive *tar.Writer) error {
 }
 
 func ProcessFile(prefix, path string, archive *tar.Writer) error {
-	name := pathpkg.Base(path)
-	if strings.HasPrefix(name, ".") {
-		return nil
-	}
 	abs_path := pathpkg.Join(prefix, path)
 	stat, err := os.Stat(abs_path)
 	if err != nil {
@@ -212,7 +212,7 @@ func Unpack(prefix, source string) error {
 		}
 		abs_path := pathpkg.Join(prefix, hdr.Name)
 		if hdr.FileInfo().IsDir() {
-			if err := os.Mkdir(abs_path, os.FileMode(hdr.Mode)); err != nil {
+			if err := os.MkdirAll(abs_path, os.FileMode(hdr.Mode)); err != nil {
 				return err
 			}
 		} else {
