@@ -68,6 +68,12 @@ Making a tarball from a go-gettable url
     goenv getpkg -o pkg.tar.gz github.com/username/repo
     tar tzf pkg.tar.gz ## check that it is what you want
 
+Make and install a tarball from a go-gettable url. This will put the
+tarball into `<projects>/deps`. It will be named
+`echo <url>.tar.gz | sed 's/\//-/g'`
+
+    goenv get github.com/username/repo
+
 # Comments
 
 Please let me know via email or github issues. There are many improvements I
