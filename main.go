@@ -69,6 +69,9 @@ goenv Commands
                                         you are currently using to limit which
                                         dependencies to download. You can use
                                         this property to make minimal tarballs
+    get <url>                           like getpkg but automatically puts
+                                        the tarball in <project>/deps and
+                                        runs the install.
 
 <project> is a path to your project directory.
 <tarball> is a path to a source tarball.
@@ -164,6 +167,7 @@ func deactivate() {
 }
 
 func goenv_cmd(argv []string) {
+
 	args, optargs, err := getopt.GetOpt(
 		argv,
 		"h",
@@ -197,7 +201,13 @@ func goenv_cmd(argv []string) {
 			fmt.Fprintln(os.Stderr, "getpkg requires you to be in a virtual env")
 			GoEnvUsage(ErrorCodes["opts"])
 		}
-		getpkg(goenv, args)
+		getpkg_cmd(goenv, args)
+	case "get":
+		if goenv == "" {
+			fmt.Fprintln(os.Stderr, "getpkg requires you to be in a virtual env")
+			GoEnvUsage(ErrorCodes["opts"])
+		}
+		get_cmd(goenv, args)
 	case "activate":
 		if len(args) == 0 {
 			fmt.Fprintln(os.Stderr, "activate require a project dir")
@@ -276,12 +286,30 @@ func mkpkg(argv []string) {
 	}
 }
 
-func getpkg(goenv string, argv []string) {
+func getpkg(goenv, url, output string) error {
+	gopath, err := ioutil.TempDir("", "gopkgr-gopath-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(gopath)
+	if err := go_get(goenv, gopath, url); err != nil {
+		return err
+	}
+	if err := go_install(goenv, gopath, url); err != nil {
+		return err
+	}
+	if err := tar.Archive(gopath, "src", output); err != nil {
+		return err
+	}
+	return nil
+}
+
+func getpkg_cmd(goenv string, argv []string) {
 	args, optargs, err := getopt.GetOpt(
 		argv,
-		"ho:r:",
+		"ho:",
 		[]string{
-			"help", "output=", "revision=",
+			"help", "output=",
 		},
 	)
 
@@ -311,24 +339,57 @@ func getpkg(goenv string, argv []string) {
 	}
 	url := args[0]
 
-	gopath, err := ioutil.TempDir("", "gopkgr-gopath-")
+	if err := getpkg(goenv, url, output); err != nil {
+		fmt.Fprintln(os.Stderr, "You must supply a source repo")
+		GoEnvUsage(ErrorCodes["opts"])
+	}
+}
+
+func get_cmd(goenv string, argv []string) {
+	args, optargs, err := getopt.GetOpt(
+		argv,
+		"h",
+		[]string{
+			"help", 
+		},
+	)
+
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(12)
-	}
-	defer os.RemoveAll(gopath)
-	if err := go_get(goenv, gopath, url); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		GoEnvUsage(ErrorCodes["opts"])
-	}
-	if err := go_install(goenv, gopath, url); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		GoEnvUsage(ErrorCodes["opts"])
+		Usage(ErrorCodes["opts"])
 	}
 
-	if err := tar.Archive(gopath, "src", output); err != nil {
+	for _, oa := range optargs {
+		switch oa.Opt() {
+		case "-h", "--help": Usage(0)
+		}
+	}
+
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "You must supply a url")
+		Usage(ErrorCodes["opts"])
+	}
+
+	url := args[0]
+	deps, err := filepath.Abs(path.Join(goenv, "..", "deps"))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		Usage(ErrorCodes["opts"])
+	}
+	if err := os.MkdirAll(deps, 0775); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		Usage(ErrorCodes["opts"])
+	}
+
+	tarball := path.Join(deps, strings.Replace(url, "/", "-", -1) + ".tar.gz")
+	
+	if err := getpkg(goenv, url, tarball); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		GoEnvUsage(ErrorCodes["opts"])
+	}
+	if err := install(goenv, tarball); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		Usage(ErrorCodes["opts"])
 	}
 }
 
