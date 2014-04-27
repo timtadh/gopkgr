@@ -340,7 +340,7 @@ func getpkg_cmd(goenv string, argv []string) {
 	url := args[0]
 
 	if err := getpkg(goenv, url, output); err != nil {
-		fmt.Fprintln(os.Stderr, "You must supply a source repo")
+		fmt.Fprintln(os.Stderr, err)
 		GoEnvUsage(ErrorCodes["opts"])
 	}
 }
