@@ -242,6 +242,19 @@ func goenv_cmd(argv []string) {
 			fmt.Fprintln(os.Stderr, err)
 			GoEnvUsage(ErrorCodes["opts"])
 		}
+	case "exec":
+		if goenv == "" {
+			fmt.Fprintln(os.Stderr, "install requires you to be in a virtual env")
+			GoEnvUsage(ErrorCodes["opts"])
+		}
+		if len(args) == 0 {
+			fmt.Fprintln(os.Stderr, "exec requires args")
+			GoEnvUsage(ErrorCodes["opts"])
+		}
+		if err := exec_cmd(goenv, args); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			GoEnvUsage(ErrorCodes["opts"])
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "command, %s, not found\n", cmd)
 		GoEnvUsage(ErrorCodes["opts"])
@@ -425,6 +438,32 @@ func go_get(goenv, gopath, spec string) error {
 		Stderr: os.Stderr,
 	}
 	if err := go_get.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func exec_cmd(goenv string, args []string) error {
+	program := args[0]
+	bin, err := exec.LookPath(program)
+	if err != nil {
+		return err
+	}
+	env := os.Environ()
+	for i, kv := range env {
+		if strings.HasPrefix(kv, "GOPATH") {
+			env[i] = fmt.Sprintf("GOPATH=%s", goenv)
+		}
+	}
+	cmd := &exec.Cmd{
+		Path: bin,
+		Args: args,
+		Env: env,
+		Stdin: os.Stdin,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}
+	if err := cmd.Run(); err != nil {
 		return err
 	}
 	return nil
